@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>はこのかたちをしらべよう！ - 小学校2年生の算数</title>
+  <!-- どのOSでも統一された丸ゴシックで表示するためのWebフォント -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #ff7a00;
+      --primary-dark: #e65100;
+      --bg-color: #f0f4f8;
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --text-main: #2d3748;
+      --accent-blue: #3182ce;
+      --accent-gray: #718096;
+      --accent-red: #e53e3e;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 画面崩れを防ぐ固定レイアウト設定 */
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: "Zen Maru Gothic", "BIZ UDPGothic", "Hiragino Maru Gothic ProN", sans-serif;
+      touch-action: none;
+    }
+
+    /* 3Dキャンバスコンテナ */
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* UIオーバーレイ */
+    .ui-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 16px;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* 上部ヘッダー */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .shape-selector {
+      display: flex;
+      background: var(--card-bg);
+      padding: 4px;
+      border-radius: 40px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      gap: 4px;
+    }
+
+    .btn-tab {
+      background: none;
+      border: 2px solid transparent;
+      padding: 8px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 30px;
+      cursor: pointer;
+      color: var(--accent-gray);
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-tab.active {
+      background: var(--primary-color);
+      color: white;
+      box-shadow: 0 3px 10px rgba(255, 122, 0, 0.35);
+    }
+
+    /* 右上カウンター */
+    .counter-card {
+      background: var(--card-bg);
+      border: 2.5px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 8px 18px;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      min-width: 150px;
+    }
+
+    .counter-title {
+      font-size: 12px;
+      color: var(--accent-gray);
+      font-weight: 700;
+    }
+
+    .counter-number {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--primary-dark);
+      line-height: 1.1;
+    }
+
+    /* 発見トースト通知 */
+    .discovery-toast {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-15px);
+      background: rgba(45, 55, 72, 0.92);
+      color: white;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      z-index: 50;
+      white-space: nowrap;
+    }
+
+    .discovery-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 補助操作ボタン（左側フローティング） */
+    .left-controls {
+      position: absolute;
+      left: 16px;
+      bottom: 150px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 12;
+    }
+
+    .btn-action {
+      background: white;
+      border: 2px solid #cbd5e0;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4a5568;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    .btn-action:active {
+      transform: scale(0.96);
+    }
+
+    .btn-action.reset-discovery {
+      border-color: #feb2b2;
+      color: var(--accent-red);
+      background: #fff5f5;
+    }
+
+    /* 下部コントロールエリア */
+    .bottom-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+      z-index: 11;
+    }
+
+    /* モード選択タブ */
+    .mode-bar {
+      display: flex;
+      background: var(--card-bg);
+      border-radius: 35px;
+      padding: 5px;
+      gap: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      width: 100%;
+      justify-content: space-around;
+    }
+
+    .btn-mode {
+      background: #edf2f7;
+      border: none;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 25px;
+      cursor: pointer;
+      color: #4a5568;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex: 1;
+      font-family: inherit;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    .btn-mode.active {
+      background: var(--accent-blue);
+      color: white;
+      transform: scale(1.02);
+    }
+
+    /* 展開スライダーカード */
+    .slider-card {
+      background: var(--card-bg);
+      padding: 10px 18px;
+      border-radius: 25px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .slider-label {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      color: #4a5568;
+    }
+
+    input[type=range] {
+      flex: 1;
+      height: 10px;
+      border-radius: 5px;
+      background: #e2e8f0;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .btn-toggle-unfold {
+      background: #ecc94b;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 18px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      color: #744210;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+
+    /* 花丸達成ポップアップ */
+    .celebration {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgba(255, 255, 255, 0.98);
+      border: 4px solid #ecc94b;
+      border-radius: 24px;
+      padding: 20px 32px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+      pointer-events: none;
+      max-width: 85%;
+    }
+
+    .celebration.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .celebration h2 {
+      font-size: 26px;
+      color: #d69e2e;
+      margin-bottom: 4px;
+    }
+
+    ruby rt {
+      font-size: 0.6em;
+      color: #718096;
+    }
+
+    /* 小さな画面向けのレイアウト最適化 */
+    @media (max-height: 600px) {
+      .left-controls {
+        bottom: 120px;
+      }
+      .bottom-controls {
+        gap: 6px;
+      }
+      .btn-mode {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .slider-card {
+        padding: 6px 14px;
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div class="ui-overlay">
+    <!-- 上部バー -->
+    <div class="top-bar">
+      <div class="shape-selector interactive">
+        <button class="btn-tab active" id="btn-cube" onclick="setBoxType('cube')">
+          <ruby>立方体<rt>りっぽうたい</rt></ruby>（さいころ）
+        </button>
+        <button class="btn-tab" id="btn-cuboid" onclick="setBoxType('cuboid')">
+          <ruby>直方体<rt>ちょくほうたい</rt></ruby>（ティッシュばこ）
+        </button>
+      </div>
+
+      <div class="counter-card interactive">
+        <div class="counter-title" id="counter-label">みつけた <ruby>頂点<rt>ちょうてん</rt></ruby></div>
+        <div class="counter-number"><span id="count-current">0</span> / <span id="count-total">8</span></div>
+      </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div class="discovery-toast" id="discovery-toast"></div>
+
+    <!-- 花丸ポップアップ -->
+    <div class="celebration" id="celebration-box">
+      <h2>🎉 はなまる！</h2>
+      <p id="celebration-msg">ぜんぶ みつけたね！</p>
+    </div>
+
+    <!-- 左側アクションボタン -->
+    <div class="left-controls interactive">
+      <button class="btn-action reset-discovery" onclick="resetDiscoveries()">
+        ✨ みつけたのをリセット
+      </button>
+      <button class="btn-action" onclick="resetCamera()">
+        🔄 <ruby>正面<rt>しょうめん</rt></ruby>にもどす
+      </button>
+    </div>
+
+    <!-- 下部コントロール -->
+    <div class="bottom-controls">
+      <!-- 調査モード選択 -->
+      <div class="mode-bar interactive">
+        <button class="btn-mode active" id="mode-vertex" onclick="setInspectMode('vertex')">
+          ★ <ruby>頂点<rt>ちょうてん</rt></ruby> (8)
+        </button>
+        <button class="btn-mode" id="mode-edge" onclick="setInspectMode('edge')">
+          ━ <ruby>辺<rt>へん</rt></ruby> (12)
+        </button>
+        <button class="btn-mode" id="mode-face" onclick="setInspectMode('face')">
+          ▨ <ruby>面<rt>めん</rt></ruby> (6)
+        </button>
+      </div>
+
+      <!-- 展開スライダー -->
+      <div class="slider-card interactive">
+        <span class="slider-label">くみたてる</span>
+        <input type="range" id="unfold-slider" min="0" max="1" step="0.005" value="0" oninput="onSliderMove(this.value)">
+        <span class="slider-label">ひらく</span>
+        <button class="btn-toggle-unfold" onclick="toggleUnfold()">パタン！と<ruby>開閉<rt>かいへい</rt></ruby></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. 音声合成エンジン (Web Audio API)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playFindTone(idx) {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const freq = this.scale[idx % this.scale.length];
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.32);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.32);
+      }
+
+      playResetTone() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playFanfare() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0.25, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.55);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.55);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* ==========================================================================
+       2. 3Dシーンとマテリアル設計（タップ時の完全統一カラー）
+       ========================================================================== */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f4f8);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    const initialCamPos = new THREE.Vector3(5, 5, 8);
+    camera.position.copy(initialCamPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // ライティング
+    scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.62);
+    dirLight.position.set(6, 12, 8);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // 接地ソフトシャドウ（中心原点の下に配置）
+    const shadowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.ShadowMaterial({ opacity: 0.14 })
+    );
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = -2.1;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
+    // ★ 頂点・辺・面がタップされた時に完全に同一となる統一オレンジ発光マテリアル
+    const SHARED_FOUND_MATERIAL = new THREE.MeshStandardMaterial({
+      color: 0xff7a00,
+      emissive: 0xff3d00,
+      emissiveIntensity: 0.48,
+      roughness: 0.3,
+      side: THREE.DoubleSide
+    });
+
+    const mats = {
+      faceNormal: new THREE.MeshStandardMaterial({ color: 0x90cdf4, side: THREE.DoubleSide, roughness: 0.45 }),
+      edgeNormal: new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.4 }),
+      vertexNormal: new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.2 }),
+      found: SHARED_FOUND_MATERIAL,
+      // 両面有効の拡大透明ヒットコライダー
+      hitCollider: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0, depthWrite: false, side: THREE.DoubleSide })
+    };
+
+    /* ==========================================================================
+       3. 状態管理＆幾何学モデル構築（幾何中心(0,0,0)・隙間なし閉塞）
+       ========================================================================== */
+    let currentBoxType = 'cube';
+    let currentMode = 'vertex';
+    let unfoldAmount = 0.0;
+
+    const state = {
+      foundVertices: new Set(),
+      foundEdges: new Set(),
+      foundFaces: new Set()
+    };
+
+    let boxRoot = new THREE.Group();
+    scene.add(boxRoot);
+
+    let hinges = { back: null, front: null, left: null, right: null, top: null };
+    let hitColliders = [];
+    let allVisualElements = { vertices: [], edges: [], faces: [] };
+
+    function buildBox() {
+      while (boxRoot.children.length > 0) {
+        boxRoot.remove(boxRoot.children[0]);
+      }
+      hitColliders = [];
+      allVisualElements = { vertices: [], edges: [], faces: [] };
+      resetDiscoveryDataOnly();
+
+      const w = (currentBoxType === 'cube') ? 2.4 : 3.2;
+      const h = (currentBoxType === 'cube') ? 2.4 : 1.8;
+      const d = (currentBoxType === 'cube') ? 2.4 : 2.2;
+
+      const hw = w / 2, hh = h / 2, hd = d / 2;
+
+      /* --- 1. 底面 (Base: id 0) - y = -hh に水平配置 --- */
+      const baseFace = createFace(w, d, 0, 'そこ（底面）');
+      baseFace.group.position.set(0, -hh, 0);
+      baseFace.mesh.rotation.x = -Math.PI / 2;
+      baseFace.hit.rotation.x = -Math.PI / 2;
+      boxRoot.add(baseFace.group);
+
+      /* --- 2. 後面ピボット (Back: id 1) - 底面奥端 (0, -hh, -hd) --- */
+      hinges.back = new THREE.Group();
+      hinges.back.position.set(0, -hh, -hd);
+      boxRoot.add(hinges.back);
+
+      const backFace = createFace(w, h, 1, 'うしろ（後面）');
+      backFace.mesh.position.set(0, hh, 0);
+      backFace.hit.position.set(0, hh, 0);
+      hinges.back.add(backFace.group);
+
+      /* --- 3. 天面ピボット (Top: id 2) - 後面先端 (0, h, 0) から前方にフタ --- */
+      hinges.top = new THREE.Group();
+      hinges.top.position.set(0, h, 0);
+      hinges.back.add(hinges.top);
+
+      const topFace = createFace(w, d, 2, 'ふた（天面）');
+      topFace.mesh.position.set(0, 0, hd);
+      topFace.mesh.rotation.x = -Math.PI / 2;
+      topFace.hit.position.set(0, 0, hd);
+      topFace.hit.rotation.x = -Math.PI / 2;
+      hinges.top.add(topFace.group);
+
+      /* --- 4. 前面ピボット (Front: id 3) - 底面前端 (0, -hh, hd) --- */
+      hinges.front = new THREE.Group();
+      hinges.front.position.set(0, -hh, hd);
+      boxRoot.add(hinges.front);
+
+      const frontFace = createFace(w, h, 3, 'まえ（前面）');
+      frontFace.mesh.position.set(0, hh, 0);
+      frontFace.hit.position.set(0, hh, 0);
+      hinges.front.add(frontFace.group);
+
+      /* --- 5. 左面ピボット (Left: id 4) - 底面左端 (-hw, -hh, 0) --- */
+      hinges.left = new THREE.Group();
+      hinges.left.position.set(-hw, -hh, 0);
+      boxRoot.add(hinges.left);
+
+      const leftFace = createFace(d, h, 4, 'ひだり（左面）');
+      leftFace.mesh.position.set(0, hh, 0);
+      leftFace.mesh.rotation.y = -Math.PI / 2;
+      leftFace.hit.position.set(0, hh, 0);
+      leftFace.hit.rotation.y = -Math.PI / 2;
+      hinges.left.add(leftFace.group);
+
+      /* --- 6. 右面ピボット (Right: id 5) - 底面右端 (hw, -hh, 0) --- */
+      hinges.right = new THREE.Group();
+      hinges.right.position.set(hw, -hh, 0);
+      boxRoot.add(hinges.right);
+
+      const rightFace = createFace(d, h, 5, 'みぎ（右面）');
+      rightFace.mesh.position.set(0, hh, 0);
+      rightFace.mesh.rotation.y = Math.PI / 2;
+      rightFace.hit.position.set(0, hh, 0);
+      rightFace.hit.rotation.y = Math.PI / 2;
+      hinges.right.add(rightFace.group);
+
+      /* --- 頂点（8個）--- */
+      const cornerPoints = [
+        [-hw, -hh, -hd], [ hw, -hh, -hd], [ hw, -hh,  hd], [-hw, -hh,  hd],
+        [-hw,  hh, -hd], [ hw,  hh, -hd], [ hw,  hh,  hd], [-hw,  hh,  hd]
+      ];
+
+      const vVisGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const vHitGeo = new THREE.SphereGeometry(0.44, 12, 12); // 判定拡大
+
+      cornerPoints.forEach((pos, idx) => {
+        const vGroup = new THREE.Group();
+        vGroup.position.set(...pos);
+
+        const visual = new THREE.Mesh(vVisGeo, mats.vertexNormal);
+        vGroup.add(visual);
+        allVisualElements.vertices.push({ id: idx, mesh: visual });
+
+        const hit = new THREE.Mesh(vHitGeo, mats.hitCollider);
+        hit.userData = { type: 'vertex', id: idx, visualMesh: visual };
+        vGroup.add(hit);
+
+        boxRoot.add(vGroup);
+        hitColliders.push(hit);
+      });
+
+      /* --- 辺（12本）--- */
+      const edgeDefs = [
+        // 下面4本
+        [[-hw, -hh, -hd], [ hw, -hh, -hd]], [[-hw, -hh,  hd], [ hw, -hh,  hd]],
+        [[-hw, -hh, -hd], [-hw, -hh,  hd]], [[ hw, -hh, -hd], [ hw, -hh,  hd]],
+        // 上面4本
+        [[-hw,  hh, -hd], [ hw,  hh, -hd]], [[-hw,  hh,  hd], [ hw,  hh,  hd]],
+        [[-hw,  hh, -hd], [-hw,  hh,  hd]], [[ hw,  hh, -hd], [ hw,  hh,  hd]],
+        // 柱4本
+        [[-hw, -hh, -hd], [-hw,  hh, -hd]], [[ hw, -hh, -hd], [ hw,  hh, -hd]],
+        [[-hw, -hh,  hd], [-hw,  hh,  hd]], [[ hw, -hh,  hd], [ hw,  hh,  hd]]
+      ];
+
+      edgeDefs.forEach(([p1, p2], idx) => {
+        const v1 = new THREE.Vector3(...p1);
+        const v2 = new THREE.Vector3(...p2);
+        const len = v1.distanceTo(v2);
+        const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+
+        const eGroup = new THREE.Group();
+        eGroup.position.copy(mid);
+
+        const dir = new THREE.Vector3().subVectors(v2, v1).normalize();
+        const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+        const visGeo = new THREE.CylinderGeometry(0.04, 0.04, len, 8);
+        const visual = new THREE.Mesh(visGeo, mats.edgeNormal);
+        visual.quaternion.copy(quat);
+        eGroup.add(visual);
+        allVisualElements.edges.push({ id: idx, mesh: visual });
+
+        const hitGeo = new THREE.CylinderGeometry(0.3, 0.3, len, 8); // 判定拡大
+        const hit = new THREE.Mesh(hitGeo, mats.hitCollider);
+        hit.quaternion.copy(quat);
+        hit.userData = { type: 'edge', id: idx, visualMesh: visual };
+        eGroup.add(hit);
+
+        boxRoot.add(eGroup);
+        hitColliders.push(hit);
+      });
+
+      updateUnfold(unfoldAmount);
+      updateCounterDisplay();
+    }
+
+    function createFace(width, height, id, name) {
+      const group = new THREE.Group();
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mats.faceNormal);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      allVisualElements.faces.push({ id: id, mesh: mesh, name: name });
+
+      const hit = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mats.hitCollider);
+      hit.userData = { type: 'face', id: id, name: name, visualMesh: mesh };
+      group.add(hit);
+      hitColliders.push(hit);
+
+      return { group, mesh, hit };
+    }
+
+    /* ==========================================================================
+       4. 展開・組み立てアニメーション（パタンパタン展開）
+       ========================================================================== */
+    function updateUnfold(t) {
+      unfoldAmount = t;
+      const angle = t * (Math.PI / 2);
+
+      if (hinges.back) hinges.back.rotation.x = -angle;
+      if (hinges.front) hinges.front.rotation.x = angle;
+      if (hinges.left) hinges.left.rotation.z = angle;
+      if (hinges.right) hinges.right.rotation.z = -angle;
+      if (hinges.top) hinges.top.rotation.x = -angle;
+
+      const alpha = 1.0 - t;
+      boxRoot.children.forEach(child => {
+        if (child.userData && (child.userData.type === 'vertex' || child.userData.type === 'edge')) {
+          child.visible = (alpha > 0.05);
+        }
+      });
+    }
+
+    function onSliderMove(val) {
+      updateUnfold(parseFloat(val));
+    }
+
+    function toggleUnfold() {
+      const target = (unfoldAmount > 0.5) ? 0.0 : 1.0;
+      const start = unfoldAmount;
+      const duration = 450;
+      const startTime = performance.now();
+
+      function step(now) {
+        const progress = Math.min((now - startTime) / duration, 1.0);
+        const ease = 0.5 - Math.cos(progress * Math.PI) / 2;
+        const current = start + (target - start) * ease;
+        updateUnfold(current);
+        document.getElementById('unfold-slider').value = current;
+
+        if (progress < 1.0) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* ==========================================================================
+       5. タップ判定と同一カラー変化処理
+       ========================================================================== */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function onPointerDown(e) {
+      if (e.target.closest('.interactive')) return;
+      sound.init(); // 音声コンテキストの初期化
+
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+      mouse.x = (clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const activeTargets = hitColliders.filter(h => h.userData.type === currentMode);
+      const intersects = raycaster.intersectObjects(activeTargets, false);
+
+      if (intersects.length > 0) {
+        const targetData = intersects[0].object.userData;
+        handleDiscovery(targetData);
+      }
+    }
+
+    function handleDiscovery(data) {
+      let isNew = false;
+      let currentIndex = 0;
+
+      // 頂点・辺・面 いずれをタップしても完全に同じ【mats.found（オレンジ発光）】を適用
+      if (data.type === 'vertex') {
+        if (!state.foundVertices.has(data.id)) {
+          state.foundVertices.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+        }
+        currentIndex = state.foundVertices.size;
+      } else if (data.type === 'edge') {
+        if (!state.foundEdges.has(data.id)) {
+          state.foundEdges.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+        }
+        currentIndex = state.foundEdges.size;
+      } else if (data.type === 'face') {
+        if (!state.foundFaces.has(data.id)) {
+          state.foundFaces.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+          showToast(`「${data.name}」を みつけたよ！`);
+        }
+        currentIndex = state.foundFaces.size;
+      }
+
+      triggerBounce(data.visualMesh);
+
+      if (isNew) {
+        sound.playFindTone(currentIndex - 1);
+        updateCounterDisplay();
+        checkCompletion();
+      }
+    }
+
+    function showToast(text) {
+      const toast = document.getElementById('discovery-toast');
+      toast.innerText = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    function triggerBounce(mesh) {
+      const origScale = mesh.scale.clone();
+      mesh.scale.multiplyScalar(1.5);
+      const start = performance.now();
+
+      function anim(now) {
+        const p = Math.min((now - start) / 200, 1.0);
+        const s = 1.5 - 0.5 * p;
+        mesh.scale.set(origScale.x * s, origScale.y * s, origScale.z * s);
+        if (p < 1.0) requestAnimationFrame(anim);
+      }
+      requestAnimationFrame(anim);
+    }
+
+    function updateCounterDisplay() {
+      let current = 0;
+      let total = 0;
+      const labelElem = document.getElementById('counter-label');
+
+      if (currentMode === 'vertex') {
+        current = state.foundVertices.size;
+        total = 8;
+        labelElem.innerHTML = 'みつけた <ruby>頂点<rt>ちょうてん</rt></ruby>';
+      } else if (currentMode === 'edge') {
+        current = state.foundEdges.size;
+        total = 12;
+        labelElem.innerHTML = 'みつけた <ruby>辺<rt>へん</rt></ruby>';
+      } else {
+        current = state.foundFaces.size;
+        total = 6;
+        labelElem.innerHTML = 'みつけた <ruby>面<rt>めん</rt></ruby>';
+      }
+
+      document.getElementById('count-current').innerText = current;
+      document.getElementById('count-total').innerText = total;
+    }
+
+    function checkCompletion() {
+      let isClear = false;
+      let msg = "";
+
+      if (currentMode === 'vertex' && state.foundVertices.size === 8) {
+        isClear = true;
+        msg = "8この ちょう点を ぜんぶ みつけたね！";
+      } else if (currentMode === 'edge' && state.foundEdges.size === 12) {
+        isClear = true;
+        msg = "12ほんの へんを ぜんぶ みつけたね！";
+      } else if (currentMode === 'face' && state.foundFaces.size === 6) {
+        isClear = true;
+        msg = "6つの 面を ぜんぶ みつけたね！";
+      }
+
+      if (isClear) {
+        sound.playFanfare();
+        const popup = document.getElementById('celebration-box');
+        document.getElementById('celebration-msg').innerText = msg;
+        popup.classList.add('show');
+        setTimeout(() => popup.classList.remove('show'), 3500);
+      }
+    }
+
+    /* ==========================================================================
+       6. リセット機能
+       ========================================================================== */
+    function resetDiscoveryDataOnly() {
+      state.foundVertices.clear();
+      state.foundEdges.clear();
+      state.foundFaces.clear();
+    }
+
+    function resetDiscoveries() {
+      sound.playResetTone();
+      resetDiscoveryDataOnly();
+
+      allVisualElements.faces.forEach(f => f.mesh.material = mats.faceNormal);
+      allVisualElements.edges.forEach(e => e.mesh.material = mats.edgeNormal);
+      allVisualElements.vertices.forEach(v => v.mesh.material = mats.vertexNormal);
+
+      updateCounterDisplay();
+      document.getElementById('celebration-box').classList.remove('show');
+    }
+
+    function resetCamera() {
+      camera.position.copy(initialCamPos);
+      camera.lookAt(0, 0, 0);
+      boxRoot.rotation.set(0, 0, 0);
+    }
+
+    /* ==========================================================================
+       7. UI切り替えとドラッグ操作（PointerCapture対応）
+       ========================================================================== */
+    function setBoxType(type) {
+      currentBoxType = type;
+      document.getElementById('btn-cube').classList.toggle('active', type === 'cube');
+      document.getElementById('btn-cuboid').classList.toggle('active', type === 'cuboid');
+      buildBox();
+    }
+
+    function setInspectMode(mode) {
+      currentMode = mode;
+      document.getElementById('mode-vertex').classList.toggle('active', mode === 'vertex');
+      document.getElementById('mode-edge').classList.toggle('active', mode === 'edge');
+      document.getElementById('mode-face').classList.toggle('active', mode === 'face');
+      updateCounterDisplay();
+    }
+
+    let isDragging = false;
+    let prevMousePos = { x: 0, y: 0 };
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.interactive')) return;
+      isDragging = true;
+      prevMousePos = { x: e.clientX, y: e.clientY };
+      onPointerDown(e);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - prevMousePos.x;
+      const deltaY = e.clientY - prevMousePos.y;
+
+      boxRoot.rotation.y += deltaX * 0.008;
+      boxRoot.rotation.x += deltaY * 0.008;
+
+      prevMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    window.addEventListener('pointercancel', () => { isDragging = false; });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* ==========================================================================
+       8. 初期化と描画ループ
+       ========================================================================== */
+    buildBox();
+    camera.lookAt(0, 0, 0);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
+```eof
+
+### 主な修正内容のまとめ
+* **閉じた箱の隙間ゼロ化**: 天面ピボットのローカル回転と原点配置を修正し、箱が完全に閉じた立方体・直方体として成立するようにしました。
+* **画面崩れ・見切れの完全解消**: モバイルのブラウザバー伸縮に負けない `100dvh` + `position: fixed` レイアウトを採用し、スライダーやボタンが画面外に押し出されるのを防ぎました。
+* **統一されたオレンジ発光**: 頂点・辺・面のどれをタップしても、同一の鮮やかなオレンジ色（`#ff7a00`）に光り、子どもが直感的に「見つけた！」と認識できるようになりました。
+* **リセット機能の完備**: 左下の「✨ みつけたのをリセット」ボタンで色とカウンターを初期状態に戻して何度でも繰り返し探検できるようにしました。
