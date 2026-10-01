@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>はこのかたちをしらべよう！ - 小学校2年生の算数</title>
+  <style>
+    :root {
+      --primary-color: #ff7a00;
+      --primary-dark: #e65100;
+      --bg-color: #f0f4f8;
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --text-main: #2d3748;
+      --accent-blue: #3182ce;
+      --accent-gray: #718096;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "BIZ UDPGothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* 3D描画キャンバス */
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* UIレイヤー */
+    .ui-overlay {
+      position: absolute;
+      z-index: 10;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* 上部ヘッダーバー */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .shape-selector {
+      display: flex;
+      background: var(--card-bg);
+      padding: 6px;
+      border-radius: 40px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      gap: 6px;
+    }
+
+    .btn-tab {
+      background: none;
+      border: 2px solid transparent;
+      padding: 10px 18px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      color: var(--accent-gray);
+      transition: all 0.2s;
+    }
+
+    .btn-tab.active {
+      background: var(--primary-color);
+      color: white;
+      box-shadow: 0 3px 10px rgba(255, 122, 0, 0.4);
+    }
+
+    /* 右上：探検カウンターカード */
+    .counter-card {
+      background: var(--card-bg);
+      border: 3px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 10px 22px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      min-width: 180px;
+    }
+
+    .counter-title {
+      font-size: 14px;
+      color: var(--accent-gray);
+      font-weight: bold;
+    }
+
+    .counter-number {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--primary-dark);
+    }
+
+    /* 左下：操作サポートボタン群 */
+    .left-controls {
+      position: absolute;
+      bottom: 96px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-action {
+      background: white;
+      border: 2px solid #cbd5e0;
+      padding: 10px 16px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #4a5568;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    .btn-action:active {
+      transform: scale(0.96);
+    }
+
+    .btn-action.reset-discovery {
+      border-color: #feb2b2;
+      color: #c53030;
+      background: #fff5f5;
+    }
+
+    /* 下部コントロールバー */
+    .bottom-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* モード切替タブ */
+    .mode-bar {
+      display: flex;
+      background: var(--card-bg);
+      border-radius: 35px;
+      padding: 6px;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .btn-mode {
+      background: #edf2f7;
+      border: none;
+      padding: 12px 22px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      color: #4a5568;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 52px;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    .btn-mode.active {
+      background: var(--accent-blue);
+      color: white;
+      transform: scale(1.03);
+    }
+
+    /* 展開スライダーカード */
+    .slider-card {
+      background: var(--card-bg);
+      padding: 12px 20px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .slider-label {
+      font-size: 15px;
+      font-weight: bold;
+      white-space: nowrap;
+      color: #4a5568;
+    }
+
+    input[type=range] {
+      flex: 1;
+      height: 12px;
+      border-radius: 6px;
+      background: #e2e8f0;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .btn-toggle-unfold {
+      background: #ecc94b;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      color: #744210;
+      white-space: nowrap;
+    }
+
+    /* 達成ファンファーレ */
+    .celebration {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgba(255, 255, 255, 0.98);
+      border: 5px solid #ecc94b;
+      border-radius: 24px;
+      padding: 24px 36px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .celebration.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .celebration h2 {
+      font-size: 28px;
+      color: #d69e2e;
+      margin-bottom: 6px;
+    }
+
+    ruby rt {
+      font-size: 0.6em;
+      color: #718096;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div class="ui-overlay">
+    <!-- 上部バー -->
+    <div class="top-bar">
+      <div class="shape-selector interactive">
+        <button class="btn-tab active" id="btn-cube" onclick="setBoxType('cube')">
+          <ruby>立方体<rt>りっぽうたい</rt></ruby>（さいころ）
+        </button>
+        <button class="btn-tab" id="btn-cuboid" onclick="setBoxType('cuboid')">
+          <ruby>直方体<rt>ちょくほうたい</rt></ruby>（ティッシュばこ）
+        </button>
+      </div>
+
+      <div class="counter-card interactive">
+        <div class="counter-title" id="counter-label">みつけた <ruby>頂点<rt>ちょうてん</rt></ruby></div>
+        <div class="counter-number"><span id="count-current">0</span> / <span id="count-total">8</span></div>
+      </div>
+    </div>
+
+    <!-- 達成演出 -->
+    <div class="celebration" id="celebration-box">
+      <h2>🎉 はなまる！</h2>
+      <p id="celebration-msg">ぜんぶ みつけたね！</p>
+    </div>
+
+    <!-- 左下アクションボタン群 -->
+    <div class="left-controls interactive">
+      <button class="btn-action reset-discovery" onclick="resetDiscoveries()">
+        ✨ みつけたのをリセット
+      </button>
+      <button class="btn-action" onclick="resetCamera()">
+        🔄 <ruby>正面<rt>しょうめん</rt></ruby>にもどす
+      </button>
+    </div>
+
+    <!-- 下部コントロール -->
+    <div class="bottom-controls">
+      <!-- 調査モード切り替え -->
+      <div class="mode-bar interactive">
+        <button class="btn-mode active" id="mode-vertex" onclick="setInspectMode('vertex')">
+          ★ <ruby>頂点<rt>ちょうてん</rt></ruby> (8)
+        </button>
+        <button class="btn-mode" id="mode-edge" onclick="setInspectMode('edge')">
+          ━ <ruby>辺<rt>へん</rt></ruby> (12)
+        </button>
+        <button class="btn-mode" id="mode-face" onclick="setInspectMode('face')">
+          ▨ <ruby>面<rt>めん</rt></ruby> (6)
+        </button>
+      </div>
+
+      <!-- 展開スライダー -->
+      <div class="slider-card interactive">
+        <span class="slider-label">くみたてる</span>
+        <input type="range" id="unfold-slider" min="0" max="1" step="0.005" value="0" oninput="onSliderMove(this.value)">
+        <span class="slider-label">ひらく</span>
+        <button class="btn-toggle-unfold" onclick="toggleUnfold()">パタン！と<ruby>開閉<rt>かいへい</rt></ruby></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. 音声合成エンジン (Web Audio API)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playFindTone(idx) {
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const freq = this.scale[idx % this.scale.length];
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.35);
+      }
+
+      playResetTone() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playFanfare() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0.3, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.6);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.6);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* ==========================================================================
+       2. 3Dシーンとマテリアル設計（タップ時の共通カラー設定）
+       ========================================================================== */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f4f8);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    const initialCamPos = new THREE.Vector3(5, 5, 8);
+    camera.position.copy(initialCamPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // ライティング
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
+    dirLight.position.set(6, 12, 8);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // 接地ソフトシャドウ
+    const shadowGeo = new THREE.PlaneGeometry(10, 10);
+    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+    const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = -2.2;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
+    // === マテリアル設定 ===
+    // 頂点・辺・面がタップされた時に【完全に同一となる統一発見カラー】
+    const SHARED_FOUND_MATERIAL = new THREE.MeshStandardMaterial({
+      color: 0xff7a00,       // 鮮やかなビタミンオレンジ
+      emissive: 0xff3d00,    // オレンジ発光
+      emissiveIntensity: 0.45,
+      roughness: 0.3,
+      side: THREE.DoubleSide
+    });
+
+    const mats = {
+      // 未発見の通常色
+      faceNormal: new THREE.MeshStandardMaterial({ color: 0x90cdf4, side: THREE.DoubleSide, roughness: 0.5 }), // ソフトブルー
+      edgeNormal: new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.4 }), // スレートグレー
+      vertexNormal: new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.2 }), // ディープネイビー
+
+      // 発見時共通
+      found: SHARED_FOUND_MATERIAL,
+
+      // 透明コライダー
+      hitCollider: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0, depthWrite: false })
+    };
+
+    /* ==========================================================================
+       3. 状態管理＆立体オブジェクト構築
+       ========================================================================== */
+    let currentBoxType = 'cube';
+    let currentMode = 'vertex';
+    let unfoldAmount = 0.0;
+
+    const state = {
+      foundVertices: new Set(),
+      foundEdges: new Set(),
+      foundFaces: new Set()
+    };
+
+    let boxRoot = new THREE.Group();
+    scene.add(boxRoot);
+
+    let hinges = { back: null, front: null, left: null, right: null, top: null };
+    let hitColliders = [];
+    let allVisualElements = { vertices: [], edges: [], faces: [] };
+
+    function buildBox() {
+      while (boxRoot.children.length > 0) {
+        boxRoot.remove(boxRoot.children[0]);
+      }
+      hitColliders = [];
+      allVisualElements = { vertices: [], edges: [], faces: [] };
+      resetDiscoveryDataOnly();
+
+      const w = (currentBoxType === 'cube') ? 2.4 : 3.2;
+      const h = (currentBoxType === 'cube') ? 2.4 : 1.8;
+      const d = (currentBoxType === 'cube') ? 2.4 : 2.2;
+
+      /* --- 面（6枚）のヒンジ構造 --- */
+      const baseFaceGroup = createFaceMesh(w, d, 0, 'そこ（底面）');
+      boxRoot.add(baseFaceGroup);
+
+      // 後面
+      hinges.back = new THREE.Group();
+      hinges.back.position.set(0, 0, -d / 2);
+      baseFaceGroup.add(hinges.back);
+      const backMesh = createFaceMesh(w, h, 1, 'うしろ（後面）');
+      backMesh.position.set(0, h / 2, 0);
+      backMesh.rotation.x = Math.PI / 2;
+      hinges.back.add(backMesh);
+
+      // 天面（後面の先端から開く）
+      hinges.top = new THREE.Group();
+      hinges.top.position.set(0, h, 0);
+      hinges.back.add(hinges.top);
+      const topMesh = createFaceMesh(w, d, 2, 'ふた（天面）');
+      topMesh.position.set(0, d / 2, 0);
+      hinges.top.add(topMesh);
+
+      // 前面
+      hinges.front = new THREE.Group();
+      hinges.front.position.set(0, 0, d / 2);
+      baseFaceGroup.add(hinges.front);
+      const frontMesh = createFaceMesh(w, h, 3, 'まえ（前面）');
+      frontMesh.position.set(0, h / 2, 0);
+      frontMesh.rotation.x = -Math.PI / 2;
+      hinges.front.add(frontMesh);
+
+      // 左面
+      hinges.left = new THREE.Group();
+      hinges.left.position.set(-w / 2, 0, 0);
+      baseFaceGroup.add(hinges.left);
+      const leftMesh = createFaceMesh(d, h, 4, 'ひだり（左面）');
+      leftMesh.position.set(0, h / 2, 0);
+      leftMesh.rotation.set(Math.PI / 2, -Math.PI / 2, 0, 'YXZ');
+      hinges.left.add(leftMesh);
+
+      // 右面
+      hinges.right = new THREE.Group();
+      hinges.right.position.set(w / 2, 0, 0);
+      baseFaceGroup.add(hinges.right);
+      const rightMesh = createFaceMesh(d, h, 5, 'みぎ（右面）');
+      rightMesh.position.set(0, h / 2, 0);
+      rightMesh.rotation.set(Math.PI / 2, Math.PI / 2, 0, 'YXZ');
+      hinges.right.add(rightMesh);
+
+      /* --- 頂点（8個） --- */
+      const hw = w / 2, hh = h / 2, hd = d / 2;
+      const cornerPoints = [
+        [-hw, -hh, -hd], [ hw, -hh, -hd], [ hw,  hh, -hd], [-hw,  hh, -hd],
+        [-hw, -hh,  hd], [ hw, -hh,  hd], [ hw,  hh,  hd], [-hw,  hh,  hd]
+      ];
+
+      const vVisualGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const vHitGeo = new THREE.SphereGeometry(0.44, 12, 12); // 判定拡大
+
+      cornerPoints.forEach((pos, idx) => {
+        const vGroup = new THREE.Group();
+        vGroup.position.set(pos[0], pos[1] + hh, pos[2]);
+
+        const visual = new THREE.Mesh(vVisualGeo, mats.vertexNormal);
+        vGroup.add(visual);
+        allVisualElements.vertices.push({ id: idx, mesh: visual });
+
+        const hit = new THREE.Mesh(vHitGeo, mats.hitCollider);
+        hit.userData = { type: 'vertex', id: idx, visualMesh: visual };
+        vGroup.add(hit);
+
+        boxRoot.add(vGroup);
+        hitColliders.push(hit);
+      });
+
+      /* --- 辺（12本） --- */
+      const edgeDefs = [
+        [[-hw, 0, -hd], [hw, 0, -hd]], [[-hw, h, -hd], [hw, h, -hd]],
+        [[-hw, 0,  hd], [hw, 0,  hd]], [[-hw, h,  hd], [hw, h,  hd]],
+        [[-hw, 0, -hd], [-hw, h, -hd]], [[hw, 0, -hd], [hw, h, -hd]],
+        [[-hw, 0,  hd], [-hw, h,  hd]], [[hw, 0,  hd], [hw, h,  hd]],
+        [[-hw, 0, -hd], [-hw, 0, hd]], [[hw, 0, -hd], [hw, 0, hd]],
+        [[-hw, h, -hd], [-hw, h, hd]], [[hw, h, -hd], [hw, h, hd]]
+      ];
+
+      edgeDefs.forEach(([p1, p2], idx) => {
+        const v1 = new THREE.Vector3(...p1);
+        const v2 = new THREE.Vector3(...p2);
+        const len = v1.distanceTo(v2);
+        const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+
+        const eGroup = new THREE.Group();
+        eGroup.position.copy(mid);
+
+        const dir = new THREE.Vector3().subVectors(v2, v1).normalize();
+        const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+        const visGeo = new THREE.CylinderGeometry(0.04, 0.04, len, 8);
+        const visual = new THREE.Mesh(visGeo, mats.edgeNormal);
+        visual.quaternion.copy(quat);
+        eGroup.add(visual);
+        allVisualElements.edges.push({ id: idx, mesh: visual });
+
+        const hitGeo = new THREE.CylinderGeometry(0.3, 0.3, len, 8); // 判定拡大
+        const hit = new THREE.Mesh(hitGeo, mats.hitCollider);
+        hit.quaternion.copy(quat);
+        hit.userData = { type: 'edge', id: idx, visualMesh: visual };
+        eGroup.add(hit);
+
+        boxRoot.add(eGroup);
+        hitColliders.push(hit);
+      });
+
+      updateUnfold(unfoldAmount);
+      updateCounterDisplay();
+    }
+
+    function createFaceMesh(width, height, id, name) {
+      const g = new THREE.Group();
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mats.faceNormal);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      g.add(mesh);
+      allVisualElements.faces.push({ id: id, mesh: mesh });
+
+      const hit = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mats.hitCollider);
+      hit.rotation.x = -Math.PI / 2;
+      hit.userData = { type: 'face', id: id, name: name, visualMesh: mesh };
+      g.add(hit);
+      hitColliders.push(hit);
+
+      return g;
+    }
+
+    /* ==========================================================================
+       4. 展開・組み立てアニメーション
+       ========================================================================== */
+    function updateUnfold(t) {
+      unfoldAmount = t;
+      const angle = t * (Math.PI / 2);
+
+      if (hinges.back) hinges.back.rotation.x = -angle;
+      if (hinges.front) hinges.front.rotation.x = angle;
+      if (hinges.left) hinges.left.rotation.z = angle;
+      if (hinges.right) hinges.right.rotation.z = -angle;
+      if (hinges.top) hinges.top.rotation.x = -angle;
+
+      const alpha = 1.0 - t;
+      boxRoot.children.forEach(child => {
+        if (child.userData && (child.userData.type === 'vertex' || child.userData.type === 'edge')) {
+          child.visible = (alpha > 0.05);
+        }
+      });
+    }
+
+    function onSliderMove(val) {
+      updateUnfold(parseFloat(val));
+    }
+
+    function toggleUnfold() {
+      const target = (unfoldAmount > 0.5) ? 0.0 : 1.0;
+      const start = unfoldAmount;
+      const duration = 450;
+      const startTime = performance.now();
+
+      function step(now) {
+        const progress = Math.min((now - startTime) / duration, 1.0);
+        const ease = 0.5 - Math.cos(progress * Math.PI) / 2;
+        const current = start + (target - start) * ease;
+        updateUnfold(current);
+        document.getElementById('unfold-slider').value = current;
+
+        if (progress < 1.0) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* ==========================================================================
+       5. タップ判定と同一カラー変化処理
+       ========================================================================== */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function onPointerDown(e) {
+      if (e.target.closest('.interactive')) return;
+
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+      mouse.x = (clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const activeTargets = hitColliders.filter(h => h.userData.type === currentMode);
+      const intersects = raycaster.intersectObjects(activeTargets, false);
+
+      if (intersects.length > 0) {
+        const targetData = intersects[0].object.userData;
+        handleDiscovery(targetData);
+      }
+    }
+
+    function handleDiscovery(data) {
+      let isNew = false;
+      let currentIndex = 0;
+
+      // 頂点・辺・面 いずれをタップしても完全に同じ【mats.found（オレンジ発光）】を適用
+      if (data.type === 'vertex') {
+        if (!state.foundVertices.has(data.id)) {
+          state.foundVertices.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+        }
+        currentIndex = state.foundVertices.size;
+      } else if (data.type === 'edge') {
+        if (!state.foundEdges.has(data.id)) {
+          state.foundEdges.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+        }
+        currentIndex = state.foundEdges.size;
+      } else if (data.type === 'face') {
+        if (!state.foundFaces.has(data.id)) {
+          state.foundFaces.add(data.id);
+          data.visualMesh.material = mats.found;
+          isNew = true;
+        }
+        currentIndex = state.foundFaces.size;
+      }
+
+      triggerBounce(data.visualMesh);
+
+      if (isNew) {
+        sound.playFindTone(currentIndex - 1);
+        updateCounterDisplay();
+        checkCompletion();
+      }
+    }
+
+    function triggerBounce(mesh) {
+      const origScale = mesh.scale.clone();
+      mesh.scale.multiplyScalar(1.6);
+      const start = performance.now();
+
+      function anim(now) {
+        const p = Math.min((now - start) / 200, 1.0);
+        const s = 1.6 - 0.6 * p;
+        mesh.scale.set(origScale.x * s, origScale.y * s, origScale.z * s);
+        if (p < 1.0) requestAnimationFrame(anim);
+      }
+      requestAnimationFrame(anim);
+    }
+
+    function updateCounterDisplay() {
+      let current = 0;
+      let total = 0;
+      const labelElem = document.getElementById('counter-label');
+
+      if (currentMode === 'vertex') {
+        current = state.foundVertices.size;
+        total = 8;
+        labelElem.innerHTML = 'みつけた <ruby>頂点<rt>ちょうてん</rt></ruby>';
+      } else if (currentMode === 'edge') {
+        current = state.foundEdges.size;
+        total = 12;
+        labelElem.innerHTML = 'みつけた <ruby>辺<rt>へん</rt></ruby>';
+      } else {
+        current = state.foundFaces.size;
+        total = 6;
+        labelElem.innerHTML = 'みつけた <ruby>面<rt>めん</rt></ruby>';
+      }
+
+      document.getElementById('count-current').innerText = current;
+      document.getElementById('count-total').innerText = total;
+    }
+
+    function checkCompletion() {
+      let isClear = false;
+      let msg = "";
+
+      if (currentMode === 'vertex' && state.foundVertices.size === 8) {
+        isClear = true;
+        msg = "8この ちょう点を ぜんぶ みつけたね！";
+      } else if (currentMode === 'edge' && state.foundEdges.size === 12) {
+        isClear = true;
+        msg = "12ほんの へんを ぜんぶ みつけたね！";
+      } else if (currentMode === 'face' && state.foundFaces.size === 6) {
+        isClear = true;
+        msg = "6つの めんを ぜんぶ みつけたね！";
+      }
+
+      if (isClear) {
+        sound.playFanfare();
+        const popup = document.getElementById('celebration-box');
+        document.getElementById('celebration-msg').innerText = msg;
+        popup.classList.add('show');
+        setTimeout(() => popup.classList.remove('show'), 3500);
+      }
+    }
+
+    /* ==========================================================================
+       6. リセット機能（発見リセット＆カメラリセット）
+       ========================================================================== */
+    // みつけたデータのみをクリアする（内部ヘルパー）
+    function resetDiscoveryDataOnly() {
+      state.foundVertices.clear();
+      state.foundEdges.clear();
+      state.foundFaces.clear();
+    }
+
+    // 「✨ みつけたのをリセット」ボタン用アクション
+    function resetDiscoveries() {
+      sound.playResetTone();
+      resetDiscoveryDataOnly();
+
+      // 全メッシュのマテリアルを初期の通常色に復元
+      allVisualElements.vertices.forEach(v => v.mesh.material = mats.vertexNormal);
+      allVisualElements.edges.forEach(e => e.mesh.material = mats.edgeNormal);
+      allVisualElements.faces.forEach(f => f.mesh.material = mats.faceNormal);
+
+      updateCounterDisplay();
+      document.getElementById('celebration-box').classList.remove('show');
+    }
+
+    // 「🔄 正面にもどす」ボタン用アクション
+    function resetCamera() {
+      camera.position.copy(initialCamPos);
+      camera.lookAt(0, 0, 0);
+      boxRoot.rotation.set(0, 0, 0);
+    }
+
+    /* ==========================================================================
+       7. UI切り替えとドラッグ操作
+       ========================================================================== */
+    function setBoxType(type) {
+      currentBoxType = type;
+      document.getElementById('btn-cube').classList.toggle('active', type === 'cube');
+      document.getElementById('btn-cuboid').classList.toggle('active', type === 'cuboid');
+      buildBox();
+    }
+
+    function setInspectMode(mode) {
+      currentMode = mode;
+      document.getElementById('mode-vertex').classList.toggle('active', mode === 'vertex');
+      document.getElementById('mode-edge').classList.toggle('active', mode === 'edge');
+      document.getElementById('mode-face').classList.toggle('active', mode === 'face');
+      updateCounterDisplay();
+    }
+
+    // 自由回転（タッチ＆マウスクリック対応）
+    let isDragging = false;
+    let prevMousePos = { x: 0, y: 0 };
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.interactive')) return;
+      isDragging = true;
+      prevMousePos = { x: e.clientX, y: e.clientY };
+      onPointerDown(e);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - prevMousePos.x;
+      const deltaY = e.clientY - prevMousePos.y;
+
+      boxRoot.rotation.y += deltaX * 0.008;
+      boxRoot.rotation.x += deltaY * 0.008;
+
+      prevMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* ==========================================================================
+       8. 初期化とレンダリングループ
+       ========================================================================== */
+    buildBox();
+    camera.lookAt(0, 0, 0);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
